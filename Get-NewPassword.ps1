@@ -1,7 +1,6 @@
 function Get-NewPassword {
   <#
   .NOTES
-  Modified from co-workers version.
   #>
 
   [CmdletBinding()]
