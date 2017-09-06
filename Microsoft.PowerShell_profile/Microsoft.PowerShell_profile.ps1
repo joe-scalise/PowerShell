@@ -8,7 +8,7 @@ if (!(Get-Module -Name posh-git)) { Import-Module -Name posh-git }
 # Increase history
 $MaximumHistoryCount = 10000
 
-# Quick way to lock screen
+# Quick way to lock screen, same as Ctrl-Alt-Delete + Enter
 function Lock 
 {
     $signature = @"  
@@ -41,8 +41,26 @@ function Restart-Profile {
 # Simple shortcut for opening files, like on macOS
 Set-Alias open Invoke-Item
 
-#Set-Content "C:\temp\DarkSkyAPI.txt" $DarkSkyAPI
-#Set-Content "C:\temp\DarkSkyCoordinates.txt" $DarkSkyCoordinates
-#iwr "https://api.darksky.net/forecast/$DarkSkyAPI/$DarkSkyCoordinates"
+# Simple shortcut for creating files, like on Linux
+Set-Alias touch New-Item
 
 Get-Date
+
+if (!(Test-Path "C:\temp\secrets\scriptpath.sec")) {
+  Write-Warning "Secret not found"
+  return
+} else {
+  $scriptPath = Get-Content "C:\temp\secrets\scriptpath.sec"
+}
+
+function Get-Weather {
+  param ([Parameter(Mandatory=$False)][switch]$NoSpace)
+  if (!$NoSpace) { Clear-Host }
+  Push-Location $scriptPath
+  . .\Get-Weather\Get-Weather.ps1
+  Get-Weather
+  Pop-Location
+  if (!$NoSpace) { Write-Host }
+}
+
+Get-Weather -NoSpace
