@@ -36,7 +36,6 @@ if ($ZipCode) {
     if (!(Test-Path "C:\temp\secrets\google.sec")) {
       Write-Warning "Google Geo Code API key not found."
     }
-
     [string]$googleAPI = Get-Content -Path "C:\temp\secrets\google.sec"
     $googleRequest = Invoke-RestMethod "https://maps.googleapis.com/maps/api/geocode/json?address=$($ZipCode)&key=$($googleAPI)"
     $lat = $googleData.results.geometry.location.lat
@@ -67,7 +66,6 @@ if ($errorZipCode -or !$ZipCode) {
   if (-not $errorLocService) {
 
     [void]$watcher.TryStart($true, [TimeSpan]::FromMilliseconds(1000))
-
     $count = 1
     do {
       $count++
@@ -81,7 +79,6 @@ if ($errorZipCode -or !$ZipCode) {
       $lat = $watcher.Position.Location.Latitude
       $long = $watcher.Position.Location.Longitude
     }
-
   }
 
 }
@@ -106,7 +103,6 @@ if ($lat -and $long) {
     Write-Warning "DarkSky API key not found."
     return
   }
-
   try {
     [string]$darkskyAPI = Get-Content -Path "C:\temp\secrets\darksky.sec" 
     $darkskyRequest = Invoke-RestMethod "https://api.darksky.net/forecast/$($darkskyAPI)/$($lat),$($long)"
@@ -115,7 +111,6 @@ if ($lat -and $long) {
     Write-Warning "DarkSky API request failed; $($_.Exception)."
     return
   }
-
   return "$([math]::Round($darkskyRequest.currently.temperature))$([char]176) $($darkskyRequest.currently.summary). $($darkskyRequest.hourly.summary)"
 
 } else {
