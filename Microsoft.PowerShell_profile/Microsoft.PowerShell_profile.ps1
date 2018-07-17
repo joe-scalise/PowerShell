@@ -1,4 +1,5 @@
-Write-Host "Loading personal profile..."
+Write-Host "Loading personal profile...`n"
+
 
 # These booleans force a few things on every launch of PowerShell on a system
 $blockVersionLaunched = $false 
@@ -13,6 +14,12 @@ if (!(Test-Path "C:\temp\secrets\scriptpath.sec")) {
   $scriptPathError = $true
 } else {
   $scriptPath = Get-Content "C:\temp\secrets\scriptpath.sec"
+}
+
+# Reloads the PowerShell Profile in same window
+function Restart-Profile {
+  Write-Host "A profile reload was called.`n"
+  & $profile
 }
 
 function Test-Administrator  
@@ -36,16 +43,18 @@ function Get-UpdatedProfile {
       try { 
         Copy-Item "$profileRepository\Microsoft.PowerShell_profile.ps1" -Destination $profileDirectory -Force 
         Restart-Profile
+        Exit
       }
-      catch { Write-Warning "Error copying updated profile from local repository." }
+      catch { Write-Warning "Error copying updated profile from local repository. $Error[0]" }
     }
 
     if (((Get-ChildItem "$profileDirectory\Microsoft.PowerShell_profile.ps1").LastWriteTime) -gt ((Get-ChildItem "$profileRepository\Microsoft.PowerShell_profile.ps1").LastWriteTime)) {
       try { 
         Copy-Item "$profileDirectory\Microsoft.PowerShell_profile.ps1" -Destination $profileRepository -Force 
         Restart-Profile
+        Exit
       }
-      catch { Write-Warning "Error copying updated profile to local repository." }
+      catch { Write-Warning "Error copying updated profile to local repository. $Error[0]" }
     }
   }
 }
@@ -126,11 +135,6 @@ Set-Alias ssh plink.exe
 
 # Temporarily add to Path to get access to Caret.exe
 $env:Path += ";$env:LOCALAPPDATA\Caret"
-
-# Reloads the PowerShell Profile in same window
-function Restart-Profile {
-    & $profile
-}
 
 # Shortcut for opening files, like on macOS
 Set-Alias open Invoke-Item
