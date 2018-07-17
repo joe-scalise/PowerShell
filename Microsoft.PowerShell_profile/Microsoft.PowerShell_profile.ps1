@@ -1,16 +1,18 @@
-# Switch this variable to false if you want to launch an older version than 6.
-$blockVersionLaunched = $true
-$alwaysRunAsAdmin = $true
+Write-Host "Loading personal profile..."
+
+# These booleans force a few things on every launch of PowerShell on a system
+$blockVersionLaunched = $false 
+$alwaysRunAsAdmin = $false
 
 $ErrorActionPreference = "Stop"
 
 # Load variable for scripts
 $scriptPathError = $false
-if (!(Test-Path "C:\temp\secrets\scriptspath.txt")) {
-  Write-Warning "Secret not found"
+if (!(Test-Path "C:\temp\secrets\scriptpath.sec")) {
+  Write-Warning "Secret file not found"
   $scriptPathError = $true
 } else {
-  $scriptPath = Get-Content "C:\temp\secrets\scriptspath.txt"
+  $scriptPath = Get-Content "C:\temp\secrets\scriptpath.sec"
 }
 
 function Test-Administrator  
@@ -21,9 +23,7 @@ function Test-Administrator
 
 # Keep updated copy of PowerShell profile from Github local repository
 function Get-UpdatedProfile {
-  
   if (-not $scriptPathError) {
-    
     if ($PSVersionTable.PSVersion.Major -ge 6) {
       # Place a symbolic link to the location of the PowerShell profile < PowerShell Core
       New-Item -ItemType SymbolicLink -Path (Join-Path -Path $Env:USERPROFILE -ChildPath Documents) -Name PowerShell -Target (Join-Path -Path $Env:USERPROFILE -ChildPath Documents\WindowsPowerShell)
@@ -35,19 +35,42 @@ function Get-UpdatedProfile {
     if (((Get-ChildItem "$profileDirectory\Microsoft.PowerShell_profile.ps1").LastWriteTime) -lt ((Get-ChildItem "$profileRepository\Microsoft.PowerShell_profile.ps1").LastWriteTime)) {
       try { 
         Copy-Item "$profileRepository\Microsoft.PowerShell_profile.ps1" -Destination $profileDirectory -Force 
-        #Restart-Profile
+        Restart-Profile
       }
       catch { Write-Warning "Error copying updated profile from local repository." }
-    
+    }
+
+    if (((Get-ChildItem "$profileDirectory\Microsoft.PowerShell_profile.ps1").LastWriteTime) -gt ((Get-ChildItem "$profileRepository\Microsoft.PowerShell_profile.ps1").LastWriteTime)) {
+      try { 
+        Copy-Item "$profileDirectory\Microsoft.PowerShell_profile.ps1" -Destination $profileRepository -Force 
+        Restart-Profile
+      }
+      catch { Write-Warning "Error copying updated profile to local repository." }
     }
   }
 }
 
+function Run-Admin {
+  $isAdmin = Test-Administrator
+  if (-not $isAdmin) { 
+    Start-Process "$PSHOME\powershell.exe" -Verb runAs
+    Stop-Process $pid
+  } else {
+    Write-Warning "Already elevated."
+  }
+}
+
+# Make sure we're using the latest copy of this file.
+Get-UpdatedProfile
+
 # Test for running as Administrator and relaunch
-$isAdmin = Test-Administrator
-if (-not $isAdmin -and $alwaysRunAsAdmin) { 
-  Start-Process "$PSHOME\powershell.exe" -Verb runAs
-  Stop-Process $pid
+if ($alwaysRunAsAdmin)
+{
+  $isAdmin = Test-Administrator
+  if (-not $isAdmin) { 
+    Start-Process "$PSHOME\powershell.exe" -Verb runAs
+    Stop-Process $pid
+  }
 }
 
 # If PowerShell version 6 was not launched, check to see if it's installed and relaunch prompt.
@@ -57,7 +80,6 @@ if ($blockVersionLaunched) {
     $InstallFolder = "$env:ProgramFiles\PowerShell\$Version"
     If (Test-Path "$InstallFolder\pwsh.exe")
     {
-      Get-UpdatedProfile
       Invoke-Item "$InstallFolder\pwsh.exe"
       Stop-Process $pid
     }
@@ -69,7 +91,7 @@ if (!(Get-Module -Name posh-git)) { Import-Module -Name posh-git }
 
 # Stop Windows 10 Connected User Experience and Telemetry
 if ($isAdmin) {
-  if ((Get-Service diagtrack | Select-Object StartType).StartType  -eq "Automatic") { Get-Service DiagTrack | Set-Service -StartupType Disabled }
+  if ((Get-Service diagtrack | Select-Object StartType).StartType  -eq "Automatic") { Write-Host "Stopping telemetry..."; Get-Service DiagTrack | Set-Service -StartupType Disabled }
   if ((Get-Service diagtrack | Select-Object Status).Status -ne "Stopped") { Stop-Service diagtrack }
 }
 
@@ -98,6 +120,10 @@ Set-Alias cls 'Add-HostSpace' -option AllScope -Force
 # http://docs.sublimetext.info/en/latest/command_line/command_line.html
 $env:Path += ";C:\Program Files\Sublime Text 3"
 
+
+$env:Path += ";C:\Program Files (x86)\PuTTY"
+Set-Alias ssh plink.exe
+
 # Temporarily add to Path to get access to Caret.exe
 $env:Path += ";$env:LOCALAPPDATA\Caret"
 
@@ -113,14 +139,10 @@ Set-Alias open Invoke-Item
 Set-Alias touch New-Item
 
 # Show date and time
-Get-Date
+Get-Date; Write-Host
 
-if (!(Test-Path "C:\temp\secrets\scriptspath.txt")) {
-  Write-Warning "Secret not found"
-  return
-} else {
-  $scriptPath = Get-Content "C:\temp\secrets\scriptspath.txt"
-}
+# Shortcut for opening Everything
+Set-Alias everything "C:\Program Files\Everything\Everything.exe"
 
 function Get-Weather {
   param ([Parameter(Mandatory=$False)][switch]$Clear)
@@ -133,4 +155,5 @@ function Get-Weather {
 }
 
 # Show the weather forecast
-Get-Weather -Clear
+Get-Weather
+cd $scriptPath
