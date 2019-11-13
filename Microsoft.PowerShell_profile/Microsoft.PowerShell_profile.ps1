@@ -1,6 +1,5 @@
 Write-Host "Loading personal profile...`n"
 
-
 # These booleans force a few things on every launch of PowerShell on a system
 $blockVersionLaunched = $false 
 $alwaysRunAsAdmin = $false
@@ -33,7 +32,14 @@ function Get-UpdatedProfile {
   if (-not $scriptPathError) {
     if ($PSVersionTable.PSVersion.Major -ge 6) {
       # Place a symbolic link to the location of the PowerShell profile < PowerShell Core
-      New-Item -ItemType SymbolicLink -Path (Join-Path -Path $Env:USERPROFILE -ChildPath Documents) -Name PowerShell -Target (Join-Path -Path $Env:USERPROFILE -ChildPath Documents\WindowsPowerShell)
+      # Check if it exists first, as it should persist
+      try {
+        $dirTest = Get-Item "$Env:USERPROFILE\Documents\PowerShell"
+        if (-not [bool]($dirTest.Attributes -band [IO.FileAttributes]::ReparsePoint)){
+          New-Item -ItemType SymbolicLink -Path (Join-Path -Path $Env:USERPROFILE -ChildPath Documents) -Name PowerShell -Target (Join-Path -Path $Env:USERPROFILE -ChildPath Documents\WindowsPowerShell)
+        }
+      }
+      catch { Write-Warning "Error with symbolic link for profile path. $Error[0]" }
     }
 
     $profileRepository = "$scriptPath\Microsoft.PowerShell_profile"
@@ -59,10 +65,14 @@ function Get-UpdatedProfile {
   }
 }
 
-function Run-Admin {
+function RunAsAdmin {
   $isAdmin = Test-Administrator
   if (-not $isAdmin) { 
-    Start-Process "$PSHOME\powershell.exe" -Verb runAs
+    if ($PSVersionTable.PSVersion.Major -lt 6) {
+      Start-Process "$PSHOME\powershell.exe" -Verb runAs
+    } else {
+      Start-Process "$PSHOME\pwsh.exe" -Verb runAs
+    }
     Stop-Process $pid
   } else {
     Write-Warning "Already elevated."
@@ -96,7 +106,6 @@ if ($blockVersionLaunched) {
 }
 
 if (!(Get-Module -Name PSReadline)) { Import-Module -Name PSReadLine }
-if (!(Get-Module -Name posh-git)) { Import-Module -Name posh-git }
 
 # Stop Windows 10 Connected User Experience and Telemetry
 if ($isAdmin) {
@@ -129,7 +138,6 @@ Set-Alias cls 'Add-HostSpace' -option AllScope -Force
 # http://docs.sublimetext.info/en/latest/command_line/command_line.html
 $env:Path += ";C:\Program Files\Sublime Text 3"
 
-
 $env:Path += ";C:\Program Files (x86)\PuTTY"
 Set-Alias ssh plink.exe
 
@@ -158,6 +166,36 @@ function Get-Weather {
   if ($Clear) { Write-Host }
 }
 
+Add-HostSpace
+
+# Change console colors
+if (Test-Path "C:\temp\ColorTool\ColorTool.exe") {
+  Set-Location 'C:\temp\ColorTool'
+  .\ColorTool.exe --quiet Nord.itermcolors
+}
+
+# Show the date
+Get-Date
+
 # Show the weather forecast
 Get-Weather
-cd $scriptPath
+
+Write-Host "---"
+
+try { $awscli = aws --version } catch {}
+if ($awscli) { Write-Host "AWS CLI: $($awscli)" }
+
+try { $python = python --version } catch {}
+if ($python) { Write-Host "Python: $($python)" }
+
+try { $powershell = ($PSVersionTable | Select-Object PSVersion).PSVersion.ToString() } catch {}
+if ($powershell) {Write-Host "Powershell: $($powershell)`n" }
+
+# Move to working directory
+Set-Location ~
+
+# Chocolatey profile
+$ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+if (Test-Path($ChocolateyProfile)) {
+  Import-Module "$ChocolateyProfile"
+}
